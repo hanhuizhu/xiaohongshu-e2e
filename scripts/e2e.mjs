@@ -82,35 +82,9 @@ async function main() {
 
   const page = await context.newPage();
 
-  // 5. 先打开 explore 页面，找用户信息
+  // 5. 打开发现页（explore），并等待内容加载
   await page.goto(`https://www.${domain}/explore`, { waitUntil: 'networkidle', timeout: 30000 });
-  console.log(`探索页 URL: ${page.url()}`);
-
-  // 从页面中找当前登录用户的 profile 链接
-  const profileLink = await page.evaluate(() => {
-    // 找包含用户名的链接
-    const links = document.querySelectorAll('a[href*="/user/profile"]');
-    for (const a of links) {
-      const href = a.getAttribute('href');
-      if (href && !href.endsWith('/user/profile')) return href;
-    }
-    // 或者找个人中心入口
-    const sideLinks = document.querySelectorAll('a[href*="profile"], a[href*="user"]');
-    for (const a of sideLinks) {
-      const href = a.getAttribute('href');
-      if (href) return href;
-    }
-    return null;
-  });
-
-  if (profileLink) {
-    const profileUrl = profileLink.startsWith('http') ? profileLink : `https://www.${domain}${profileLink}`;
-    console.log(`找到个人中心: ${profileUrl}`);
-    await page.goto(profileUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    console.log(`个人中心 URL: ${page.url()}`);
-  } else {
-    console.log('未找到个人中心链接，在 explore 页面继续');
-  }
+  console.log(`发现页 URL: ${page.url()}`);
 
   // 6. 滚动页面，触发懒加载
   for (let i = 0; i < SCROLL_TIMES; i++) {
@@ -120,7 +94,7 @@ async function main() {
   }
 
   // 截图诊断
-  const screenshotPath = path.join(IMG_DIR, '..', 'screenshots', 'profile.png');
+  const screenshotPath = path.join(IMG_DIR, '..', 'screenshots', 'explore.png');
   fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
   await page.screenshot({ path: screenshotPath, fullPage: false });
   console.log(`截图: ${screenshotPath}`);
