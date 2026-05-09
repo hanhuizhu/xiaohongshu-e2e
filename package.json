@@ -1,0 +1,13 @@
+{
+  "name": "xiaohongshu-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "node scripts/e2e.mjs",
+    "cookies": "python3 scripts/extract_cookies.py xiaohongshu.com"
+  },
+  "dependencies": {
+    "playwright": "^1.59.0"
+  }
+}
