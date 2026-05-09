@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小红书发现页</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 16px; }
+  .container { max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; color: #333; margin-bottom: 16px; text-align: center; }
+  .grid { column-count: 2; column-gap: 12px; }
+  .grid-item { break-inside: avoid; margin-bottom: 12px; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .grid-item img { display: block; width: 100%; height: auto; }
+  .count { text-align: center; color: #999; font-size: 13px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔥 小红书发现页</h1>
+  <div class="count"></div>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+  const total = 694;
+  const grid = document.getElementById('grid');
+  document.querySelector('.count').textContent = `共 ${total} 张图片`;
+  for (let i = 1; i <= total; i++) {
+    const div = document.createElement('div');
+    div.className = 'grid-item';
+    const img = document.createElement('img');
+    img.src = `img/${String(i).padStart(3, '0')}.jpg`;
+    img.loading = 'lazy';
+    img.alt = `图片 ${i}`;
+    div.appendChild(img);
+    grid.appendChild(div);
+  }
+</script>
+</body>
+</html>

@@ -9,7 +9,7 @@ import http from 'http';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IMG_DIR = path.join(__dirname, '..', 'img');
-const SCROLL_TIMES = 5; // 滚动次数
+const SCROLL_TIMES = 60;
 
 /** 调用 Python 脚本获取 cookie */
 function getCookies(domain = 'xiaohongshu.com') {
@@ -82,15 +82,27 @@ async function main() {
 
   const page = await context.newPage();
 
-  // 5. 打开发现页（explore），并等待内容加载
+  // 5. 拦截网络请求：收集所有帖子图片 URL
+  const imageUrlSet = new Set();
+  page.on('response', response => {
+    const url = response.url();
+    if (url.includes('sns-webpic') && url.includes('nc_n_webp')) {
+      imageUrlSet.add(url);
+    }
+  });
+
+  // 6. 打开发现页（explore）
   await page.goto(`https://www.${domain}/explore`, { waitUntil: 'networkidle', timeout: 30000 });
   console.log(`发现页 URL: ${page.url()}`);
+  console.log(`首次加载收集到 ${imageUrlSet.size} 张帖子图片`);
 
-  // 6. 滚动页面，触发懒加载
+  // 7. 缓慢滚动到底部，收集更多图片
   for (let i = 0; i < SCROLL_TIMES; i++) {
-    await page.evaluate(() => window.scrollBy(0, document.body.scrollHeight / 3));
-    await page.waitForTimeout(2000);
-    console.log(`滚动第 ${i + 1}/${SCROLL_TIMES} 次`);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(3000);
+    if ((i + 1) % 10 === 0) {
+      console.log(`滚动第 ${i + 1}/${SCROLL_TIMES} 次，累计收集 ${imageUrlSet.size} 张图片`);
+    }
   }
 
   // 截图诊断
@@ -99,62 +111,28 @@ async function main() {
   await page.screenshot({ path: screenshotPath, fullPage: false });
   console.log(`截图: ${screenshotPath}`);
 
-  // 7. 提取图片 - 多种方式
-  const imageUrls = await page.evaluate(() => {
-    const urls = new Set();
-
-    // 方式1: img 标签
-    document.querySelectorAll('img').forEach(el => {
-      const src = el.currentSrc || el.src || el.getAttribute('data-src') || '';
-      if (src && !src.startsWith('data:') && !src.includes('data:image')) {
-        urls.add(src);
-      }
-    });
-
-    // 方式2: 背景图片
-    document.querySelectorAll('*').forEach(el => {
-      const bg = window.getComputedStyle(el).backgroundImage;
-      if (bg && bg !== 'none') {
-        const m = bg.match(/url\(["']?([^"')]+)["']?\)/);
-        if (m && m[1] && !m[1].startsWith('data:')) urls.add(m[1]);
-      }
-    });
-
-    // 方式3: picture source
-    document.querySelectorAll('source').forEach(el => {
-      const src = el.getAttribute('srcset') || el.getAttribute('data-srcset') || '';
-      if (src) {
-        src.split(',').forEach(s => {
-          const url = s.trim().split(/\s+/)[0];
-          if (url && !url.startsWith('data:')) urls.add(url);
-        });
-      }
-    });
-
-    return [...urls];
-  });
-
-  console.log(`共发现 ${imageUrls.length} 张图片`);
-  if (imageUrls.length > 0) {
-    console.log('前 5 张:', imageUrls.slice(0, 5));
+  // 8. 转为数组并下载
+  const postUrls = [...imageUrlSet];
+  console.log(`共发现 ${postUrls.length} 张帖子图片`);
+  if (postUrls.length > 0) {
+    console.log('前 3 张:', postUrls.slice(0, 3));
   }
 
-  // 8. 下载图片
   let successCount = 0;
-  for (let i = 0; i < imageUrls.length; i++) {
-    const url = imageUrls[i];
-    const ext = path.extname(new URL(url).pathname) || '.jpg';
-    const filePath = path.join(IMG_DIR, `${String(i + 1).padStart(3, '0')}${ext}`);
+  for (let i = 0; i < postUrls.length; i++) {
+    const url = postUrls[i];
+    // 使用序号命名，去除 URL 参数作为扩展名参考
+    const filePath = path.join(IMG_DIR, `${String(i + 1).padStart(3, '0')}.jpg`);
     try {
       await downloadImage(url, filePath);
       successCount++;
-      console.log(`[${i + 1}/${imageUrls.length}] 下载成功`);
+      console.log(`[${i + 1}/${postUrls.length}] 下载成功`);
     } catch (err) {
-      console.log(`[${i + 1}/${imageUrls.length}] 下载失败: ${url.slice(0, 60)}`);
+      console.log(`[${i + 1}/${postUrls.length}] 下载失败: ${url.slice(0, 60)}`);
     }
   }
 
-  console.log(`\n完成！成功下载 ${successCount}/${imageUrls.length} 张图片到 img/ 目录`);
+  console.log(`\n完成！成功下载 ${successCount}/${postUrls.length} 张帖子图片到 img/ 目录`);
 
   await browser.close();
 }
